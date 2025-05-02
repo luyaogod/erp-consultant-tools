@@ -1,0 +1,49 @@
+# Byte-compiled / optimized / DLL files
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/
+*.env
+
+# Distribution / packaging
+dist
+build
+wheelhouse
+*.egg-info
+MANIFEST
+
+# Installer logs
+pip-log.txt
+pip-debug.log
+
+# Unit test / coverage reports
+.coverage
+.tox
+.nox
+.pytest_cache
+htmlcov
+unit_tests_report/
+
+# Documentation
+docs/_build
+*.md docx
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs and databases
+*.log
+*.sqlite3
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+test/
