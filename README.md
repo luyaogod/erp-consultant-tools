@@ -4,7 +4,16 @@ pip install -r requirements.txt
 ```
 
 # smap
-该脚本用于复制 Excel 文件中所有 Sheet 的结构（仅保留 Sheet 名称），生成一个空模板文件，常用于创建标准化模板或清空数据后的结构复用。
+该模块实现了 Excel 文件之间的 VLOOKUP 功能，通过查找另一个 Excel 文件中的数据范围，替换目标 Excel 文件中指定列的数据。
+
+支持以下功能：
+
+从 JSON 配置文件或字典加载字段映射关系。
+多 Sheet 处理。
+自定义匹配与未匹配处理策略（如保留原值、设置为空）。
+跳过表头行和指定数量的数据行。
+保存处理后的文件为新名称。
+
 ```python
     # 使用自定义处理程序示例
     class CustomHandler(MatchHandler):
