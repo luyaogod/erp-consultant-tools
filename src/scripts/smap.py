@@ -131,7 +131,6 @@ class Smap:
                     field_dict[key] = value
 
             self.lookup_data[field] = field_dict
-
         lookup_wb.close()
 
     def _process_target_file(self):
@@ -168,7 +167,6 @@ class Smap:
         ):
             cell = row[0]
             lookup_value = lookup_map.get(cell.value)
-
             if lookup_value is not None:
                 self.match_handler.on_match(cell, lookup_value)
             else:
