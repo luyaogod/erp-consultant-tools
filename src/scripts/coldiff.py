@@ -115,4 +115,4 @@ def coldiff(
 
 if __name__ == "__main__":
     # 示例用法
-    coldiff('src/test/coldiff/昆山对比.xlsx', 'A2:B2351', output_type='excel', suffix='_diff')
+    coldiff('src/test/coldiff/锡圆群组对比.xlsx', 'A2:B17', output_type='excel', suffix='_diff')
