@@ -5,7 +5,6 @@ from openpyxl import load_workbook
 from openpyxl.cell import Cell
 from openpyxl.worksheet.worksheet import Worksheet
 from typing import List, Tuple, Callable, Optional
-from pathlib import Path
 from pydantic import BaseModel, field_validator, Field
 from pydantic_core.core_schema import FieldValidationInfo
 
