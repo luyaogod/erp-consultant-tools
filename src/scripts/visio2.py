@@ -70,8 +70,8 @@ class FileLoader:
         try:
             all_files = [
                 f
-                for f in os.listdir(visio_dir)
-                if os.path.isfile(os.path.join(visio_dir, f))
+                for f in os.listdir(self.visio_dir)
+                if os.path.isfile(os.path.join(self.visio_dir, f))
             ]
 
             file_list = [
@@ -127,7 +127,7 @@ class Convertor:
                 raise RuntimeError("Visio未正确授权或试用版已过期") from lic_ex
 
             # 创建输出目录（兼容中文路径）
-            pdf_output_dir = os.path.join(visio_dir, "PDF")
+            pdf_output_dir = os.path.join(self.visio_dir, "PDF")
             os.makedirs(pdf_output_dir, exist_ok=True)
 
             total_files = len(self.file_list)
@@ -142,7 +142,7 @@ class Convertor:
                     pdf_path = os.path.join(pdf_output_dir, pdf_filename)
 
                     # 使用原始API参数确保兼容性
-                    visio_file_path = os.path.normpath(os.path.join(visio_dir, filename))
+                    visio_file_path = os.path.normpath(os.path.join(self.visio_dir, filename))
                     visio_doc = visio_app.Documents.Open(visio_file_path)
 
                     # 最简参数调用（兼容大多数版本）
@@ -165,8 +165,7 @@ class Convertor:
             return generated_files
 
         except Exception as e:
-            print(f"[严重错误] PDF导出中断: {str(e)}")
-            print("请检查：1. Visio是否已激活 2. 文件路径是否合法 3. 管理员权限")
+            raise e
             return []
         finally:
             if visio_app is not None:
@@ -183,9 +182,8 @@ class ToolConfig(BaseModel):
 
 
 def run_tool(config: ToolConfig, update_progress=None):
-    f = FileLoader(visio_dir)
-    fiels = f.get_visio_files()
-    c = Convertor(visio_dir=visio_dir, file_list=fiels, update_progress=update_progress)
+    fiels = FileLoader(config.visio_dir).get_visio_files()
+    c = Convertor(visio_dir=config.visio_dir, file_list=fiels, update_progress=update_progress)
     c.converte(config.format)
 
 

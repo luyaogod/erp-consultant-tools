@@ -1,6 +1,11 @@
 from .encoder import run_tool as run_tool_encoder, ToolConfig as ToolConfigEncoder
 from .json5t import run_tool as run_tool_json5t, ToolConfig as ToolConfigJson5t
-from .visio2 import run_tool as run_tool_visio2, ToolConfig as ToolConfigVisio2
+from .visio2 import (
+    run_tool as run_tool_visio2,
+    ToolConfig as ToolConfigVisio2,
+    SUPPORT_FORMAT as SUPPORT_FORMAT_VISIO2,
+)
+
 
 __all__ = [
     "run_tool_encoder",
@@ -8,5 +13,6 @@ __all__ = [
     "run_tool_json5t",
     "ToolConfigJson5t",
     "run_tool_visio2",
-    "ToolConfigVisio2"
+    "ToolConfigVisio2",
+    "SUPPORT_FORMAT_VISIO2",
 ]

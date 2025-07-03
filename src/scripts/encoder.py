@@ -403,17 +403,6 @@ class ToolConfig(BaseModel):
     sheet_name: Optional[str] = "生成单号"
     num_zill: int = Field(..., ge=0)  # 输出格式化时流水号补位数
 
-    @field_validator("excel_file")
-    @classmethod
-    def excel_file_must_exist(cls, v: str) -> str:
-        """验证Excel文件是否存在"""
-        path = Path(v)
-        if not path.exists():
-            raise ValueError(f"Excel文件不存在: {v}")
-        if not path.suffix.lower() == ".xlsx":
-            raise ValueError("只支持.xlsx格式的Excel文件")
-        return v
-
     @field_validator("separators")
     @classmethod
     def validate_separators_length(
@@ -425,16 +414,6 @@ class ToolConfig(BaseModel):
         ):
             raise ValueError("分隔符数量必须与函数索引数量相同")
         return v
-
-    @field_validator("database_path")
-    @classmethod
-    def validate_database_path(cls, v: str) -> str:
-        """验证数据库路径是否存在，不存在则创建"""
-        path = Path(v)
-        if not path.parent.exists():
-            path.parent.mkdir(parents=True, exist_ok=True)  # 自动创建不存在的目录
-        return v
-
 
 def run_tool(config: ToolConfig):
     """运行工具的主函数"""
