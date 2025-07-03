@@ -2,9 +2,13 @@ import os
 import pythoncom
 import win32com.client
 import subprocess
-WORD_APP_VISIBLE = "v3.1"
-visFixedFormatPDF = 1
+from typing import Literal
+from pydantic import BaseModel
 
+WORD_APP_VISIBLE = "v3.0"
+SUPPORT_FORMAT = Literal[
+    "PDF", 
+]
 
 class Utils:
     @staticmethod
@@ -82,202 +86,118 @@ class FileLoader:
             print(f"扫描目录失败: {e}")
             return []
 
+class Convertor:
+    def __init__(self, visio_dir:str, file_list:list[str], update_progress=None):
+        self.visio_dir = visio_dir
+        self.file_list = file_list
+        self.update_progress = update_progress
 
-def convertor_img(
-    visio_dir,
-    file_list,
-    update_progress=None,
-    image_format="PNG",
-):
-    """
-    将Visio文件导出为图片到Converted_Files目录下
+    def converte(self, format: SUPPORT_FORMAT):
+        if format == "PNG" or format == "JPEG" or format == "SVG":
+            return self.convertor_img(format)
+        if format == "PDF":
+            return self.convertor_pdf()
+        else:
+            raise ValueError("不支持的格式")
 
-    参数:
-        visio_dir (str): Visio文件所在目录路径
-        file_list (list): 要转换的Visio文件名列表
-        update_progress (function, 可选): 进度回调函数，格式为func(文件名, 当前序号, 总数)
-        image_format (str): 导出的图片格式，支持"PNG"、"JPG"、"GIF"等Visio支持的格式
 
-    返回:
-        list: 生成的图片文件路径列表
 
-    流程:
-    1. 初始化COM环境
-    2. 启动Visio应用程序
-    3. 为每个Visio文件创建单独的子目录
-    4. 将每页导出为指定格式的图片
-    5. 返回所有生成的图片路径
+    def convertor_pdf(self):
+        """
+        增强版Visio转PDF函数（解决授权和路径问题）
 
-    注意:
-    - 图片会保存在visio_dir/Converted_Files/原文件名/目录下
-    - 图片命名为"Page_1.png"、"Page_2.png"等形式
-    - 使用前确保没有Visio进程运行(可调用kill_visio_processes)
-    """
-    pythoncom.CoInitialize()
-    generated_files = []
-    try:
-        visio_app = win32com.client.Dispatch("Visio.Application")
-        visio_app.Visible = False
+        改进点：
+        1. 增加Visio许可证检查
+        2. 处理中文路径兼容性
+        3. 更完善的错误处理
+        """
+        pythoncom.CoInitialize()
+        generated_files = []
+        visio_app = None
 
-        total_files = len(file_list)
-        for idx, filename in enumerate(file_list):
-            if update_progress:
-                update_progress(filename, idx + 1, total_files)
-
-            # 创建文件输出目录: visio_dir/Converted_Files/原文件名/
-            output_dir = os.path.join(
-                visio_dir, "Converted_Files", os.path.splitext(filename)[0]
-            )
-            os.makedirs(output_dir, exist_ok=True)
-
-            # 打开Visio文件
-            visio_file_path = os.path.normpath(os.path.join(visio_dir, filename))
-            visio_doc = visio_app.Documents.Open(visio_file_path)
-
-            # 导出每一页
-            for i, page in enumerate(visio_doc.Pages):
-                page_number = i + 1
-                image_name = f"Page_{page_number}.{image_format.lower()}"
-                image_path = os.path.join(output_dir, image_name)
-
-                # 导出图片 (使用完整的导出方法确保质量)
-                page.Export(image_path)
-                generated_files.append(image_path)
-
-            visio_doc.Close()
-
-        return generated_files
-
-    except Exception as e:
-        print(f"导出图片时出错: {e}")
-        return []
-    finally:
         try:
-            visio_app.Quit()
-        except Exception:
-            pass
-        pythoncom.CoUninitialize()
+            # 尝试启动Visio并检查许可证
+            visio_app = win32com.client.Dispatch("Visio.Application")
+            visio_app.Visible = False
 
-
-def convertor_pdf(
-    visio_dir,
-    file_list,
-    update_progress=None,
-):
-    """
-    增强版Visio转PDF函数（解决授权和路径问题）
-
-    改进点：
-    1. 增加Visio许可证检查
-    2. 处理中文路径兼容性
-    3. 更完善的错误处理
-    """
-    pythoncom.CoInitialize()
-    generated_files = []
-    visio_app = None
-
-    try:
-        # 尝试启动Visio并检查许可证
-        visio_app = win32com.client.Dispatch("Visio.Application")
-        visio_app.Visible = False
-
-        # 验证Visio是否已授权
-        try:
-            _ = visio_app.Version  # 触发许可证检查
-        except Exception as lic_ex:
-            raise RuntimeError("Visio未正确授权或试用版已过期") from lic_ex
-
-        # 创建输出目录（兼容中文路径）
-        pdf_output_dir = os.path.join(visio_dir, "Converted_Files", "PDF")
-        os.makedirs(pdf_output_dir, exist_ok=True)
-
-        total_files = len(file_list)
-        for idx, filename in enumerate(file_list):
+            # 验证Visio是否已授权
             try:
-                if update_progress:
-                    update_progress(filename, idx + 1, total_files)
+                _ = visio_app.Version  # 触发许可证检查
+            except Exception as lic_ex:
+                raise RuntimeError("Visio未正确授权或试用版已过期") from lic_ex
 
-                # 处理中文文件名（短路径转换）
-                safe_filename = filename.encode("gbk", errors="ignore").decode("gbk")
-                pdf_filename = os.path.splitext(safe_filename)[0] + ".pdf"
-                pdf_path = os.path.join(pdf_output_dir, pdf_filename)
+            # 创建输出目录（兼容中文路径）
+            pdf_output_dir = os.path.join(visio_dir, "PDF")
+            os.makedirs(pdf_output_dir, exist_ok=True)
 
-                # 使用原始API参数确保兼容性
-                visio_file_path = os.path.normpath(os.path.join(visio_dir, filename))
-                visio_doc = visio_app.Documents.Open(visio_file_path)
+            total_files = len(self.file_list)
+            for idx, filename in enumerate(self.file_list):
+                try:
+                    if self.update_progress:
+                        self.update_progress(filename, idx + 1, total_files)
 
-                # 最简参数调用（兼容大多数版本）
-                visio_doc.ExportAsFixedFormat(
-                    1,  # visFixedFormatPDF
-                    pdf_path,
-                    1,  # IncludeDocumentProperties
-                    0,  # IgnoreDocumentStructure
-                    600,  # BitmapResolution
-                    1,  # OptimizeForPrint
-                )
+                    # 处理中文文件名（短路径转换）
+                    safe_filename = filename.encode("gbk", errors="ignore").decode("gbk")
+                    pdf_filename = os.path.splitext(safe_filename)[0] + ".pdf"
+                    pdf_path = os.path.join(pdf_output_dir, pdf_filename)
 
-                generated_files.append(pdf_path)
-                visio_doc.Close()
+                    # 使用原始API参数确保兼容性
+                    visio_file_path = os.path.normpath(os.path.join(visio_dir, filename))
+                    visio_doc = visio_app.Documents.Open(visio_file_path)
 
-            except Exception as file_ex:
-                print(f"[警告] 文件 {filename} 转换失败: {str(file_ex)}")
-                continue
+                    # 最简参数调用（兼容大多数版本）
+                    visio_doc.ExportAsFixedFormat(
+                        1,  # visFixedFormatPDF
+                        pdf_path,
+                        1,  # IncludeDocumentProperties
+                        0,  # IgnoreDocumentStructure
+                        600,  # BitmapResolution
+                        1,  # OptimizeForPrint
+                    )
 
-        return generated_files
+                    generated_files.append(pdf_path)
+                    visio_doc.Close()
 
-    except Exception as e:
-        print(f"[严重错误] PDF导出中断: {str(e)}")
-        print("请检查：1. Visio是否已激活 2. 文件路径是否合法 3. 管理员权限")
-        return []
-    finally:
-        if visio_app is not None:
-            try:
-                visio_app.Quit()
-            except Exception:
-                pass
-        pythoncom.CoUninitialize()
+                except Exception as file_ex:
+                    print(f"[警告] 文件 {filename} 转换失败: {str(file_ex)}")
+                    continue
 
-def run_visio_task(visio_dir, func, *args, **kwargs):
-    """
-    自动获取 file_list 并执行指定的 Visio 处理任务函数。
+            return generated_files
 
-    参数:
-        visio_dir (str): Visio 文件所在目录
-        func (callable): 要执行的处理函数（如 visio_to_word_export_png）
-        *args, **kwargs: 会透传给 func 的额外参数
+        except Exception as e:
+            print(f"[严重错误] PDF导出中断: {str(e)}")
+            print("请检查：1. Visio是否已激活 2. 文件路径是否合法 3. 管理员权限")
+            return []
+        finally:
+            if visio_app is not None:
+                try:
+                    visio_app.Quit()
+                except Exception:
+                    pass
+            pythoncom.CoUninitialize()
 
-    返回:
-        func 返回值，或 None（如果无文件或出错）
-    """
-    file_list = FileLoader(visio_dir).get_visio_files()
-    if not file_list:
-        print(f"在目录 {visio_dir} 中未找到任何 Visio 文件。")
-        return None
 
-    return func(visio_dir, file_list, *args, **kwargs)
+class ToolConfig(BaseModel):
+    visio_dir:str
+    format:SUPPORT_FORMAT
+
+
+def run_tool(config: ToolConfig, update_progress=None):
+    f = FileLoader(visio_dir)
+    fiels = f.get_visio_files()
+    c = Convertor(visio_dir=visio_dir, file_list=fiels, update_progress=update_progress)
+    c.converte(config.format)
 
 
 if __name__ == "__main__":
     visio_dir = r"D:\鼎捷项目\历史项目\进迭时空\进迭时空SOP-v2\制造SOP\采购管理"
-    run_visio_task(visio_dir, convertor_pdf)
+    def update_progress(filename, idx, total_files):
+        print(f"正在处理文件：({idx}/{total_files} {filename} )")
 
-    # visio_dir = r"D:\Lenovo\Desktop\进迭时空SOP-v2\财务SOP\应收管理"
-    # run_visio_task(visio_dir, visio_to_word_export_png, separate_files=True)
+    conf = ToolConfig(
+        visio_dir=visio_dir,
+        format="PDF",
+    )
+    run_tool(conf, update_progress)
 
-    # visio_dir = r"D:\Lenovo\Desktop\进迭时空SOP-v2\财务SOP\资产管理"
-    # run_visio_task(visio_dir, visio_to_word_export_png, separate_files=True)
 
-    # visio_dir = r"D:\Lenovo\Desktop\进迭时空SOP-v2\财务SOP\总账管理"
-    # run_visio_task(visio_dir, visio_to_word_export_png, separate_files=True)
-
-    # visio_dir = r"D:\Lenovo\Desktop\进迭时空SOP-v2\制造SOP\采购管理"
-    # run_visio_task(visio_dir, visio_to_word_export_png, separate_files=True)
-
-    # visio_dir = r"D:\Lenovo\Desktop\进迭时空SOP-v2\制造SOP\委外仓库管理"
-    # run_visio_task(visio_dir, visio_to_word_export_png, separate_files=True)
-
-    # visio_dir = r"D:\Lenovo\Desktop\进迭时空SOP-v2\制造SOP\物料BOM"
-    # run_visio_task(visio_dir, visio_to_word_export_png, separate_files=True)
-
-    # visio_dir = r"D:\Lenovo\Desktop\进迭时空SOP-v2\制造SOP\物料BOM-IC"
-    # run_visio_task(visio_dir, visio_to_word_export_png, separate_files=True)
